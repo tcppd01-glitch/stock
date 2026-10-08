@@ -92,6 +92,7 @@ function doGet(e) {
           case 'addItemsBulk':        result = addItemsBulk(args[0], args[1]); break;
           case 'updateItem':          result = updateItem(args[0], args[1], args[2]); break;
           case 'deleteItem':          result = deleteItem(args[0], args[1]); break;
+          case 'deleteCategory':      result = deleteCategory(args[0], args[1]); break;
           case 'adjustStock':         result = adjustStock(args[0], args[1]); break;
           case 'getStocktakes':       result = getStocktakes(args[0]); break;
           case 'saveStocktakeDraft':  result = saveStocktakeDraft(args[0], args[1]); break;
