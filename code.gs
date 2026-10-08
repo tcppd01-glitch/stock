@@ -521,11 +521,16 @@ function getItemById(token, itemId) {
   } catch(err) { return { success: false, message: err.message }; }
 }
 
-/** addItem — เพิ่มรายการวัสดุใหม่ (Admin) */
+/** canAddItem — ผู้ที่เพิ่มรายการวัสดุใหม่ได้: ผู้ดูแลระบบ และเจ้าหน้าที่คลัง (แก้ไข/ลบยังเป็นเฉพาะ Admin) */
+function canAddItem(session) {
+  return !!session && (session.role === 'admin' || session.role === 'staff');
+}
+
+/** addItem — เพิ่มรายการวัสดุใหม่ (Admin / เจ้าหน้าที่คลัง) */
 function addItem(token, itemData) {
   try {
     var session = validateSession(token);
-    if (!session || session.role !== 'admin') return { success: false, message: 'ไม่มีสิทธิ์ดำเนินการ' };
+    if (!canAddItem(session)) return { success: false, message: 'ไม่มีสิทธิ์ดำเนินการ' };
     var items = getSheetData('Items');
     var code = 'SUP-' + String(items.length + 1).padStart(3, '0');
     var newItem = {
@@ -561,7 +566,7 @@ function addItem(token, itemData) {
 function addItemsBulk(token, itemList) {
   try {
     var session = validateSession(token);
-    if (!session || session.role !== 'admin') return { success: false, message: 'ไม่มีสิทธิ์ดำเนินการ' };
+    if (!canAddItem(session)) return { success: false, message: 'ไม่มีสิทธิ์ดำเนินการ' };
     if (!itemList || !itemList.length) return { success: false, message: 'ไม่มีรายการที่จะเพิ่ม' };
 
     var lock = LockService.getScriptLock();
@@ -827,6 +832,42 @@ function adjustStock(token, adjustments) {
     } finally { lock.releaseLock(); }
   } catch(err) {
     logError('adjustStock', err);
+    return { success: false, message: err.message };
+  }
+}
+
+var DEFAULT_CATEGORIES = ['วัสดุทำความสะอาด','น้ำยาทำความสะอาด','อุปกรณ์ทำความสะอาด','อุปกรณ์ป้องกัน','วัสดุบรรจุภัณฑ์','อุปกรณ์จัดเก็บ','อุปกรณ์ไฟฟ้า','อุปกรณ์อื่นๆ','อื่นๆ'];
+
+/**
+ * deleteCategory — ลบหมวดหมู่ออกจากรายการให้เลือก (Admin / เจ้าหน้าที่คลัง)
+ * ลบได้เฉพาะหมวดที่ไม่มีวัสดุใช้งานอยู่ — รายการที่เลือกได้ = Config.categories (ถ้าไม่เคยตั้ง ใช้หมวดตั้งต้น) + หมวดที่วัสดุใช้อยู่
+ */
+function deleteCategory(token, name) {
+  try {
+    var session = validateSession(token);
+    if (!canAddItem(session)) return { success: false, message: 'ไม่มีสิทธิ์ดำเนินการ' };
+    name = String(name || '').trim();
+    if (!name) return { success: false, message: 'ไม่ได้ระบุหมวดหมู่' };
+
+    var used = getSheetData('Items').filter(function(i) {
+      return i.active !== false && String(i.category || '').trim() === name;
+    }).length;
+    if (used > 0) return { success: false, message: 'ลบไม่ได้ เพราะมีวัสดุ ' + used + ' รายการใช้หมวดหมู่นี้อยู่ (ย้ายวัสดุไปหมวดอื่นก่อน)' };
+
+    var cfg = getConfig();
+    var current = (cfg.categories === undefined || cfg.categories === null)
+      ? DEFAULT_CATEGORIES.slice()
+      : String(cfg.categories).split(/[,\n]/).map(function(c){ return c.trim(); }).filter(Boolean);
+    var next = current.filter(function(c){ return c !== name; });
+
+    var rows = getSheetData('Config');
+    var patch = { categories: next.join(',') };
+    if (rows.length > 0) updateInSheet('Config', rows[0].id, patch);
+    else saveToSheet('Config', patch);
+    invalidateConfigCache();
+    return { success: true, data: next, message: 'ลบหมวดหมู่เรียบร้อย' };
+  } catch(err) {
+    logError('deleteCategory', err);
     return { success: false, message: err.message };
   }
 }
@@ -2457,6 +2498,7 @@ function getPublicConfig() {
     app_logo: cfg.app_logo || '',
     organization_name: cfg.organization_name || '',
     departments: cfg.departments || '',
+    categories: (cfg.categories === undefined || cfg.categories === null) ? null : String(cfg.categories),
     low_stock_threshold: cfg.low_stock_threshold || CONFIG.LOW_STOCK_DEFAULT,
     app_version: cfg.app_version || CONFIG.APP_VERSION,
     api_idempotent: true   // backend นี้รองรับ rid (runOnce) -> หน้าเว็บลองส่งคำสั่งเขียนซ้ำได้อย่างปลอดภัย

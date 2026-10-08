@@ -1280,11 +1280,34 @@ function textareaFieldHTML(label, id, value, extra) {
 var NEW_CATEGORY_VALUE = '__new__';
 var DEFAULT_CATEGORIES = ['วัสดุทำความสะอาด','น้ำยาทำความสะอาด','อุปกรณ์ทำความสะอาด','อุปกรณ์ป้องกัน','วัสดุบรรจุภัณฑ์','อุปกรณ์จัดเก็บ','อุปกรณ์ไฟฟ้า','อุปกรณ์อื่นๆ','อื่นๆ'];
 
-/** categoryOptionList — หมวดหมู่ที่เลือกได้: หมวดหมู่ที่มีใช้อยู่ในระบบ + หมวดหมู่ตั้งต้น */
+/** categoryOptionList — หมวดหมู่ที่เลือกได้: หมวดหมู่ที่มีใช้อยู่ในระบบ + รายการที่ตั้งไว้ (ยังไม่เคยลบเลย = หมวดตั้งต้น) */
 function categoryOptionList() {
   var cats = getCategoryList(_itemsData);
-  DEFAULT_CATEGORIES.forEach(function(c){ if (cats.indexOf(c) === -1) cats.push(c); });
+  var base = (_APP_CONFIG.categories === undefined || _APP_CONFIG.categories === null)
+    ? DEFAULT_CATEGORIES : parseListString(_APP_CONFIG.categories);
+  base.forEach(function(c){ if (cats.indexOf(c) === -1) cats.push(c); });
   return cats.sort(function(a, b){ return a.localeCompare(b, 'th'); });
+}
+
+/** deleteSelectedCategory — ลบหมวดหมู่ที่เลือกอยู่ในช่องหมวดหมู่ (ลบได้เฉพาะหมวดที่ไม่มีวัสดุใช้อยู่) */
+function deleteSelectedCategory() {
+  var sel = document.getElementById('itemCategory');
+  var name = sel ? sel.value : '';
+  if (!name || name === NEW_CATEGORY_VALUE) { showError('กรุณาเลือกหมวดหมู่ที่ต้องการลบก่อน'); return; }
+  var used = _itemsData.filter(function(i){ return i.category === name; }).length;
+  if (used > 0) { showError('ลบไม่ได้ เพราะมีวัสดุ ' + used + ' รายการใช้หมวดหมู่นี้อยู่'); return; }
+  showConfirm('ลบหมวดหมู่ "' + name + '"?', 'หมวดหมู่นี้จะหายจากรายการให้เลือก', function() {
+    showLoading('กำลังลบ...');
+    callAPI('deleteCategory', AUTH.token, name).then(function(res) {
+      hideLoading();
+      if (!res.success) { showError(res.message); return; }
+      _APP_CONFIG.categories = res.data.join(',');
+      var opt = sel.querySelector('option[value="' + name.replace(/"/g, '\\"') + '"]');
+      if (opt) opt.remove();
+      sel.value = '';
+      showSuccess(res.message);
+    }).catch(function() { hideLoading(); showError('เกิดข้อผิดพลาด'); });
+  }, 'ลบ');
 }
 
 /** categoryFieldHTML — ช่องหมวดหมู่แบบ Dropdown (เลือก "+ เพิ่มหมวดหมู่ใหม่" เพื่อพิมพ์ชื่อหมวดหมู่เองได้) */
@@ -1293,12 +1316,13 @@ function categoryFieldHTML(value) {
   var cats = categoryOptionList();
   if (value && cats.indexOf(value) === -1) cats.unshift(value);
   var html = '<div><label class="form-label">หมวดหมู่</label>'
-    + '<select id="itemCategory" class="form-input" onchange="onItemCategoryChange(this)">'
+    + '<div class="flex gap-2"><select id="itemCategory" class="form-input" onchange="onItemCategoryChange(this)">'
     + '<option value="">— เลือกหมวดหมู่ —</option>';
   cats.forEach(function(c) {
     html += '<option value="' + escHtml(c) + '"' + (c === value ? ' selected' : '') + '>' + escHtml(c) + '</option>';
   });
   html += '<option value="' + NEW_CATEGORY_VALUE + '">+ เพิ่มหมวดหมู่ใหม่...</option></select>'
+    + '<button type="button" onclick="deleteSelectedCategory()" title="ลบหมวดหมู่ที่เลือก (ลบได้เฉพาะหมวดที่ไม่มีวัสดุใช้อยู่)" class="btn-secondary px-3 text-red-500 shrink-0"><i class="fi fi-rr-trash"></i></button></div>'
     + '<input type="text" id="itemCategoryNew" placeholder="พิมพ์ชื่อหมวดหมู่ใหม่" class="form-input mt-2 hidden"></div>';
   return html;
 }
