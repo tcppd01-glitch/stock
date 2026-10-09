@@ -615,7 +615,7 @@ function addItemsBulk(token, itemList) {
           supplier: String(row.supplier || '').trim(),
           storage_location: String(row.storage_location || '').trim(),
           current_stock: parseInt(row.current_stock) || 0,
-          min_stock: parseInt(row.min_stock) || 5,
+          min_stock: parseInt(row.min_stock) || 0,
           description: String(row.description || '').trim(),
           image_file_id: row.image_file_id || '',
           active: true
@@ -720,7 +720,7 @@ function repairItems(token, dryRun) {
       if (isBlank(item.category)) fix.category = seed ? seed.category : 'อื่นๆ';
       if (item.description === undefined || item.description === null) fix.description = '';
       if (item.min_stock === undefined || item.min_stock === null || isNaN(parseInt(item.min_stock))) {
-        fix.min_stock = seed ? seed.min_stock : 5;
+        fix.min_stock = seed ? seed.min_stock : 0;
       }
 
       if (Object.keys(fix).length === 0) return;
