@@ -1097,7 +1097,7 @@ function bulkRowHTML(id, v) {
     + '<td class="px-2 py-1.5">' + inp('unit', 'text', v.unit || '', ' list="bulkUnitList"') + '</td>'
     + '<td class="px-2 py-1.5">' + inp('category', 'text', v.category || '', ' list="bulkCatList"') + '</td>'
     + '<td class="px-2 py-1.5">' + inp('current_stock', 'number', v.current_stock !== undefined ? v.current_stock : 0, ' min="0"') + '</td>'
-    + '<td class="px-2 py-1.5">' + inp('min_stock', 'number', v.min_stock !== undefined ? v.min_stock : 5, ' min="0"') + '</td>'
+    + '<td class="px-2 py-1.5">' + inp('min_stock', 'number', v.min_stock !== undefined ? v.min_stock : 0, ' min="0"') + '</td>'
     + '<td class="px-2 py-1.5">' + inp('price', 'number', v.price !== undefined ? v.price : 0, ' min="0" step="0.01"') + '</td>'
     + '<td class="px-2 py-1.5 text-center"><button onclick="bulkRemoveRow(' + id + ')" title="ลบแถว" class="w-6 h-6 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"><i class="fi fi-rr-trash text-xs"></i></button></td>'
     + '</tr>';
@@ -1145,7 +1145,7 @@ function bulkParsePaste() {
     return {
       name: c[0] || '', size: c[1] || '', unit: c[2] || '', category: c[3] || '',
       current_stock: c[4] !== undefined && c[4] !== '' ? parseInt(c[4]) || 0 : 0,
-      min_stock:     c[5] !== undefined && c[5] !== '' ? parseInt(c[5]) || 5 : 5,
+      min_stock:     c[5] !== undefined && c[5] !== '' ? parseInt(c[5]) || 0 : 0,
       price:         c[6] !== undefined && c[6] !== '' ? parseFloat(c[6]) || 0 : 0
     };
   });
@@ -1385,7 +1385,7 @@ function readItemForm() {
     storage_location: (document.getElementById('itemLocation')||{}).value||'',
     description: (document.getElementById('itemDescription')||{}).value||'',
     current_stock: parseInt((document.getElementById('itemStock')||{}).value)||0,
-    min_stock: parseInt((document.getElementById('itemMinStock')||{}).value)||5,
+    min_stock: parseInt((document.getElementById('itemMinStock')||{}).value)||0,
     image_file_id: (document.getElementById('itemImageFileId')||{}).value||_itemImageFileId||''
   };
 }
@@ -1425,7 +1425,7 @@ function removeItemImage() {
   var location = (document.getElementById('itemLocation')||{}).value||'';
   var description = (document.getElementById('itemDescription')||{}).value||'';
   var stock = (document.getElementById('itemStock')||{}).value||0;
-  var min   = (document.getElementById('itemMinStock')||{}).value||5;
+  var min   = (document.getElementById('itemMinStock')||{}).value||0;
   var editId = (document.getElementById('itemEditId')||{}).value||'';  // คงสถานะ เพิ่ม/แก้ไข ไว้ตอน render ฟอร์มใหม่
   var fakeItem = {id:editId, name:name, size:size, unit:unit, barcode:barcode, category:cat, price:price, supplier:supplier, storage_location:location, description:description, current_stock:stock, min_stock:min, image_file_id:''};
   var body = itemFormHTML(fakeItem);
@@ -1448,7 +1448,7 @@ function showItemDetailModal(itemId) {
   if (!item) return;
   var sClass = getStockClass(item.current_stock, item.min_stock);
   var sLabel = getStockLabel(item.current_stock, item.min_stock);
-  var pct = item.min_stock > 0 ? Math.min(100, Math.round(item.current_stock / (item.min_stock * 3) * 100)) : 50;
+  var pct = item.min_stock >= 0 ? Math.min(100, Math.round(item.current_stock / (item.min_stock * 3) * 100)) : 50;
   var barColor = item.current_stock <= 0 ? 'bg-red-500' : item.current_stock <= item.min_stock ? 'bg-amber-400' : 'bg-green-500';
 
   var imgUrlSrc = imgUrl(item.image_file_id);
@@ -1673,7 +1673,7 @@ function buildStockContent(data) {
     data.forEach(function(item) {
       var sClass = getStockClass(item.current_stock, item.min_stock);
       var sLabel = getStockLabel(item.current_stock, item.min_stock);
-      var pct = item.min_stock > 0 ? Math.min(100, Math.round(item.current_stock / (item.min_stock*3) * 100)) : 50;
+      var pct = item.min_stock >= 0 ? Math.min(100, Math.round(item.current_stock / (item.min_stock*3) * 100)) : 50;
       var barColor = item.current_stock <= 0 ? 'bg-red-500' : item.current_stock <= item.min_stock ? 'bg-amber-400' : 'bg-green-500';
       html += '<div class="card p-4 flex flex-col gap-3 hover:shadow-md transition-shadow">';
       html += '<div class="flex items-start justify-between">';
